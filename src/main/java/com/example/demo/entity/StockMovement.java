@@ -2,10 +2,9 @@ package com.example.demo.entity;
 
 import com.example.demo.entity.enums.MovementType;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "stock_movement")

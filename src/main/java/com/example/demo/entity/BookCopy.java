@@ -2,9 +2,8 @@ package com.example.demo.entity;
 
 import com.example.demo.entity.enums.FormatType;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "book_copy")

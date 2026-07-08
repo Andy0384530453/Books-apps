@@ -2,10 +2,9 @@ package com.example.demo.entity;
 
 import com.example.demo.entity.enums.PaymentStatus;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDateTime;
 import java.util.*;
+import lombok.*;
 
 @Entity
 @Table(name = "sale")
