@@ -1,0 +1,602 @@
+openapi: 3.0.3
+info:
+  title: BookStore API
+  description: API for bookstore management featuring OpenLibrary integration for automated book data retrieval.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api
+    description: Development server
+
+tags:
+  - name: Books
+    description: Book inventory and analytics
+  - name: BookCopies
+    description: Stock management per copy and format
+  - name: Sales
+    description: Customer purchases and billing
+  - name: Customers
+    description: Customer profile management
+
+paths:
+  /books:
+    get:
+      summary: List all books
+      tags:
+        - Books
+      description: Returns a complete list of books with optional filtering by genre.
+      parameters:
+        - name: genre
+          in: query
+          description: Filter books by genre
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of books retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookDetail'
+        '400':
+          description: Bad request
+    post:
+      summary: Add a new book
+      tags:
+        - Books
+      description: Receives prices, titles and metadata with an internal UUID, and creates a database record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookInput'
+      responses:
+        '201':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookDetail'
+        '400':
+          description: Invalid data
+
+  /books/top-profit:
+    get:
+      summary: List most profitable books
+      tags:
+        - Books
+      description: Returns books sorted by total profit descending, calculated as (selling_price - purchase_price) * quantity_sold.
+      responses:
+        '200':
+          description: Ranking of the most profitable books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookProfitDetail'
+
+  /books/low-stock:
+    get:
+      summary: List low stock books
+      tags:
+        - Books
+      description: Returns books with a current stock level less than or equal to 3.
+      responses:
+        '200':
+          description: List of books requiring replenishment
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookDetail'
+
+  /books/{bookId}/copies/stock:
+    get:
+      summary: Get book stock by format or grouped
+      tags:
+        - BookCopies
+      description: |
+        Returns the available stock for a book.
+        If the `format` query parameter is provided, returns the total stock for that specific format.
+        Otherwise, returns the stock grouped by all available formats.
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          description: UUID of the book
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          required: false
+          description: Filter by format type (POCHE, BROCHE, RELIE, CARTONNE)
+          schema:
+            $ref: '#/components/schemas/FormatType'
+      responses:
+        '200':
+          description: Stock information
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StockResponse'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/StockByFormatEntry'
+        '400':
+          description: Invalid UUID or format value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/{bookId}/copies/{copyId}/decrement:
+    post:
+      summary: Decrement stock for a specific copy
+      tags:
+        - BookCopies
+      description: Decreases the stock of a BookCopy when a sale occurs. Checks that the remaining stock does not become negative.
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          description: UUID of the book
+          schema:
+            type: string
+            format: uuid
+        - name: copyId
+          in: path
+          required: true
+          description: UUID of the BookCopy
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockRequest'
+      responses:
+        '200':
+          description: Stock decremented successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockUpdateResponse'
+        '400':
+          description: Invalid UUID or non-positive quantity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: BookCopy not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /books/{bookId}/copies/{copyId}/increment:
+    post:
+      summary: Increment stock for a specific copy
+      tags:
+        - BookCopies
+      description: Increases the stock of a BookCopy during restocking.
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          description: UUID of the book
+          schema:
+            type: string
+            format: uuid
+        - name: copyId
+          in: path
+          required: true
+          description: UUID of the BookCopy
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockRequest'
+      responses:
+        '200':
+          description: Stock incremented successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockUpdateResponse'
+        '400':
+          description: Invalid UUID or non-positive quantity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: BookCopy not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sales:
+    post:
+      summary: Register a sale
+      tags:
+        - Sales
+      description: Creates a new transaction record, links books with purchased quantities, and updates inventory stock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaleInput'
+      responses:
+        '201':
+          description: Sale registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+        '400':
+          description: Invalid sale data or insufficient stock
+
+  /sales/{id}:
+    get:
+      summary: Get sale details
+      tags:
+        - Sales
+      description: Returns full transaction details based on a unique sale identifier.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the sale
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sale details found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaleDetail'
+        '404':
+          description: Sale not found
+
+  /customers:
+    get:
+      summary: List all customers
+      tags:
+        - Customers
+      description: Returns a complete list of registered customer accounts.
+      responses:
+        '200':
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerDetail'
+    post:
+      summary: Create a customer profile
+      tags:
+        - Customers
+      description: Adds a new customer profile to the database.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerInput'
+      responses:
+        '201':
+          description: Customer profile created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetail'
+        '400':
+          description: Invalid customer data
+
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Explicit error message payload
+
+    AuthorDetail:
+      type: object
+      required:
+        - id_author
+        - last_name
+        - first_name
+      properties:
+        id_author:
+          type: string
+          format: uuid
+        last_name:
+          type: string
+        first_name:
+          type: string
+
+    BookInput:
+      type: object
+      required:
+        - title
+        - purchase_price
+        - selling_price
+        - category
+      properties:
+        title:
+          type: string
+        purchase_price:
+          type: number
+          format: float
+        selling_price:
+          type: number
+          format: float
+        category:
+          $ref: '#/components/schemas/CategoryDetail'
+
+    BookDetail:
+      type: object
+      required:
+        - id_book
+        - title
+        - genre
+        - purchase_price
+        - selling_price
+        - current_stock
+        - category
+      properties:
+        id_book:
+          type: string
+          format: uuid
+        title:
+          type: string
+        genre:
+          type: string
+        publication_date:
+          type: string
+          format: date
+        purchase_price:
+          type: number
+          format: float
+        selling_price:
+          type: number
+          format: float
+        current_stock:
+          type: integer
+        category:
+          $ref: '#/components/schemas/CategoryDetail'
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorDetail'
+
+    BookProfitDetail:
+      allOf:
+        - $ref: '#/components/schemas/BookDetail'
+        - type: object
+          properties:
+            total_profit:
+              type: number
+              format: float
+
+    CustomerInput:
+      type: object
+      required:
+        - first_name
+        - last_name
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        phone_number:
+          type: string
+        email:
+          type: string
+          format: email
+
+    CustomerDetail:
+      type: object
+      required:
+        - id_customer
+        - first_name
+        - last_name
+      properties:
+        id_customer:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        last_name:
+          type: string
+        phone_number:
+          type: string
+        email:
+          type: string
+          format: email
+
+    CategoryDetail:
+      type: object
+      required:
+        - id_category
+        - category_name
+      properties:
+        id_category:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          enum: [LARGE, MEDIUM, SMALL]
+
+    BookQuantityReference:
+      type: object
+      required:
+        - id_book
+        - quantity
+      properties:
+        id_book:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+
+    SaleInput:
+      type: object
+      required:
+        - customer_id
+        - books
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        books:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookQuantityReference'
+
+    SaleDetail:
+      type: object
+      required:
+        - id_sale
+        - sale_date
+        - payment_status
+        - books
+      properties:
+        id_sale:
+          type: string
+          format: uuid
+        sale_date:
+          type: string
+          format: date-time
+        payment_status:
+          type: string
+          enum: [PENDING, PAID, CANCELLED]
+        customer:
+          $ref: '#/components/schemas/CustomerDetail'
+        books:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookQuantityReference'
+
+    StockHistoryDetail:
+      type: object
+      required:
+        - id_stock
+        - id_book
+        - movement_type
+        - movement_date
+        - quantity
+        - reason
+      properties:
+        id_stock:
+          type: string
+          format: uuid
+        id_book:
+          type: string
+          format: uuid
+        movement_type:
+          type: string
+          enum: [IN, OUT]
+        movement_date:
+          type: string
+          format: date-time
+        quantity:
+          type: integer
+        sale_id:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error category
+        message:
+          type: string
+          description: Human-readable error description
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+
+    FormatType:
+      type: string
+      enum: [POCHE, BROCHE, RELIE, CARTONNE]
+
+    StockResponse:
+      type: object
+      required:
+        - currentStock
+      properties:
+        currentStock:
+          type: integer
+          description: Total available stock for the given book and format
+
+    StockByFormatEntry:
+      type: object
+      required:
+        - format
+        - stock
+      properties:
+        format:
+          $ref: '#/components/schemas/FormatType'
+        stock:
+          type: integer
+          description: Total stock for this format
+
+    StockRequest:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          description: Number of copies to add or remove
+
+    StockUpdateResponse:
+      type: object
+      required:
+        - bookCopyId
+        - newStock
+      properties:
+        bookCopyId:
+          type: string
+          format: uuid
+          description: Identifier of the updated BookCopy
+        newStock:
+          type: integer
+          description: New stock level after the operation
