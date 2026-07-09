@@ -2,7 +2,6 @@ package com.example.demo.entity;
 
 import com.example.demo.entity.enums.FormatType;
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.*;
@@ -30,7 +29,7 @@ public class BookCopy {
 
   @Column(name = "quantity", nullable = false)
   private Integer quantity;
-  
+
   @Column(name = "current-stock")
   private Integer currentStock;
 
