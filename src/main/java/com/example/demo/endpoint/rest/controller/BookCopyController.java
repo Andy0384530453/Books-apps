@@ -1,5 +1,6 @@
 package com.example.demo.endpoint.rest.controller;
 
+import com.example.demo.dto.response.BookCopyRevenues;
 import com.example.demo.entity.enums.FormatType;
 import com.example.demo.service.BookCopyService;
 import java.math.BigDecimal;

@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.response.BookCopyRevenues;
 import com.example.demo.entity.enums.FormatType;
 import com.example.demo.repository.BookCopyRepository;
 import jakarta.transaction.Transactional;
