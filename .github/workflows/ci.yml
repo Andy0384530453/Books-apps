@@ -31,6 +31,10 @@ jobs:
           distribution: 'corretto'
       - run: chmod +x gradlew
       - run: chmod +x .shell/publish_gen_to_maven_local.sh
+      - name: Ensure spring-boot-starter-validation dependency
+        run: |
+          grep -q "spring-boot-starter-validation" build.gradle || \
+            sed -i "/spring-boot-starter-web/a\\    implementation 'org.springframework.boot:spring-boot-starter-validation:3.2.2'" build.gradle
       - run: |
           ./gradlew test
 
