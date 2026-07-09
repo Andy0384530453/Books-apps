@@ -126,6 +126,27 @@ class BookServiceTest {
   }
 
   @Test
+  void createBook_shouldHandleCategoryWithNameOnly() {
+    CategoryDetail catDetail =
+        CategoryDetail.builder().idCategory(null).categoryName(CategoryName.SCIENCE).build();
+    BookInput input =
+        BookInput.builder()
+            .title("Science Book")
+            .purchasePrice(BigDecimal.TEN)
+            .sellingPrice(BigDecimal.valueOf(20))
+            .category(catDetail)
+            .build();
+    when(bookRepository.save(any(Book.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(bookMapper.toDetail(any(Book.class)))
+        .thenReturn(BookDetail.builder().title("Science Book").build());
+
+    BookDetail result = bookService.createBook(input);
+
+    assertEquals("Science Book", result.getTitle());
+    verify(bookRepository).save(any(Book.class));
+  }
+
+  @Test
   void createBook_shouldThrowWhenCategoryNull() {
     BookInput input =
         BookInput.builder()
