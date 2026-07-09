@@ -5,7 +5,6 @@ import com.example.demo.dto.response.BookDetail;
 import com.example.demo.dto.response.BookProfitDetail;
 import com.example.demo.exception.InvalidRequestException;
 import com.example.demo.service.BookService;
-import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -37,7 +36,7 @@ public class BookController {
   }
 
   @PostMapping("/books")
-  public ResponseEntity<?> createBook(@Valid @RequestBody BookInput input) {
+  public ResponseEntity<?> createBook(@RequestBody BookInput input) {
     try {
       BookDetail created = bookService.createBook(input);
       return ResponseEntity.status(HttpStatus.CREATED).body(created);

@@ -113,6 +113,8 @@ class BookControllerTest {
 
   @Test
   void createBook_shouldReturn400WhenBodyInvalid() throws Exception {
+    when(bookService.createBook(any(BookInput.class)))
+        .thenThrow(new InvalidRequestException("title must not be blank"));
     mockMvc
         .perform(post("/api/books").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isBadRequest());
